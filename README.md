@@ -1,6 +1,6 @@
 # Kidz Gamez
 
-A starter scaffold for a browser-based 3D arcade where kids can browse and launch educational games.
+A browser-based 3D arcade project, now featuring a first playable motocross prototype inspired by classic MX-style gameplay.
 
 ## Yes — Bun works great here
 
@@ -9,9 +9,9 @@ This project can be run with **Bun** as the package manager and script runner (r
 ## What this scaffold includes
 
 - A Vite + TypeScript web app with Three.js.
-- A simple 3D "arcade hallway" scene with 3 selectable game cabinets.
-- A side panel to show game details (`name`, `description`, `difficulty`, and route).
-- A placeholder **Play** button where your router/game launcher can be integrated.
+- A first playable motocross prototype with rolling dirt terrain, jumps, simple bike physics, and trick scoring.
+- AI bot riders for a light race simulation with lap and position tracking.
+- On-screen HUD and keyboard controls for speed, jumps, tricks, and resets.
 
 ## Suggested repo organization
 
@@ -69,3 +69,13 @@ npm run dev
 - Move game metadata into JSON/TS manifests under `src/games/`.
 - Add avatar or first-person controls so kids can "walk" in the arcade.
 - Persist progress/profile data for each child.
+
+
+## MX Mini Prototype controls
+
+- `W`: Throttle
+- `S`: Brake / reverse
+- `A` / `D`: Steer
+- `Space`: Jump
+- `Q` / `E`: Air trick spin
+- `R`: Reset rider

@@ -1,0 +1,88 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #131a2b, #070b12 55%);
+  color: #eef4ff;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+}
+
+#scene-root {
+  position: relative;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.panel {
+  border-left: 1px solid rgba(148, 182, 255, 0.25);
+  background: rgba(7, 10, 17, 0.85);
+  backdrop-filter: blur(6px);
+  padding: 1.25rem;
+  overflow-y: auto;
+}
+
+.panel h1 {
+  margin: 0;
+  font-size: 1.45rem;
+}
+
+.panel p {
+  margin: 0.5rem 0;
+  color: #c8d9ff;
+  line-height: 1.45;
+}
+
+.game-meta {
+  margin-top: 1.25rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(148, 182, 255, 0.25);
+  border-radius: 0.7rem;
+  background: rgba(20, 29, 51, 0.5);
+}
+
+button {
+  margin-top: 0.85rem;
+  width: 100%;
+  border: none;
+  border-radius: 0.6rem;
+  font-size: 0.95rem;
+  padding: 0.7rem;
+  color: #0b1020;
+  background: #93d3ff;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(146, 211, 255, 0.4);
+}
+
+@media (max-width: 960px) {
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 62vh 1fr;
+  }
+
+  .panel {
+    border-left: none;
+    border-top: 1px solid rgba(148, 182, 255, 0.25);
+  }
+}

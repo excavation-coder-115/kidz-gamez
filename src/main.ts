@@ -2,8 +2,8 @@ import './style.css';
 import * as THREE from 'three';
 
 interface RiderState {
-  mesh: THREE.Group;
-  velocity: THREE.Vector3;
+  mesh: any;
+  velocity: any;
   lap: number;
   wrappedLastFrame: boolean;
 }
@@ -42,6 +42,8 @@ const hud = document.querySelector<HTMLElement>('#hud');
 if (!sceneRoot || !hud) {
   throw new Error('Layout root was not found.');
 }
+
+const hudElement = hud;
 
 const world = {
   width: 360,
@@ -116,7 +118,7 @@ for (let lane = -2; lane <= 2; lane += 1) {
 }
 scene.add(laneLines);
 
-function makeBike(color: number): THREE.Group {
+function makeBike(color: number): any {
   const bike = new THREE.Group();
 
   const body = new THREE.Mesh(
@@ -307,7 +309,7 @@ function updateHud(): void {
   const position = getRacePosition();
   const airborne = player.mesh.position.y > terrainHeight(player.mesh.position.x, player.mesh.position.z) + 0.95;
 
-  hud.innerHTML = `
+  hudElement.innerHTML = `
     <div class="hud-grid">
       <p><span>Speed</span><strong>${speed.toFixed(0)} km/h</strong></p>
       <p><span>Lap</span><strong>${player.lap}</strong></p>

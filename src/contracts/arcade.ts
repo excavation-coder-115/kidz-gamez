@@ -75,9 +75,16 @@ export interface KernelContext {
   };
 }
 
+export interface ArcadeScene {
+  activate(): Promise<void> | void;
+  dispose(): Promise<void> | void;
+}
+
 export interface ArcadePlugin {
   id: string;
-  canLaunch(profile: ChildProfile): LaunchCheck;
+  route: string;
+  canLaunch(profile: ChildProfile | null): LaunchCheck;
+  createScene(ctx: KernelContext): Promise<ArcadeScene> | ArcadeScene;
   onEnter(ctx: KernelContext): Promise<void> | void;
   onExit(ctx: KernelContext): Promise<void> | void;
 }

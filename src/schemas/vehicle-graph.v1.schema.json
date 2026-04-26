@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kidz-gamez.local/schemas/vehicle-graph.v1.schema.json",
+  "title": "VehicleGraphV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "classId", "nodes"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "classId": { "type": "string", "minLength": 1 },
+    "nodes": {
+      "type": "array",
+      "maxItems": 60,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "moduleId", "transform"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "moduleId": { "type": "string", "minLength": 1 },
+          "parentId": { "type": "string", "minLength": 1 },
+          "socketId": { "type": "string", "minLength": 1 },
+          "transform": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tx", "ty", "tz", "rx", "ry", "rz", "sx", "sy", "sz"],
+            "properties": {
+              "tx": { "type": "number" },
+              "ty": { "type": "number" },
+              "tz": { "type": "number" },
+              "rx": { "type": "number" },
+              "ry": { "type": "number" },
+              "rz": { "type": "number" },
+              "sx": { "type": "number", "exclusiveMinimum": 0 },
+              "sy": { "type": "number", "exclusiveMinimum": 0 },
+              "sz": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "cosmetics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "paintId": { "type": "string", "minLength": 1 },
+        "decalIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

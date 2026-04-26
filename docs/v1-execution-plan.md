@@ -98,3 +98,7 @@ Exit criteria:
    - Mitigation: centralize policy checks in kernel `canLaunch` path.
 4. Scene memory leaks
    - Mitigation: lifecycle disposal contract and leak checks in dev.
+
+## Task breakdown
+
+Implementation-ready task cards are maintained in [`docs/tasks/`](./tasks/README.md), including detailed acceptance criteria, test plans, and blocker dependencies for sequencing.

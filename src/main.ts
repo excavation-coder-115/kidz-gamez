@@ -1,41 +1,12 @@
 import './style.css';
 import * as THREE from 'three';
 
-interface GameCard {
-  id: string;
-  name: string;
-  description: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  route: string;
-  color: number;
+interface RiderState {
+  mesh: THREE.Group;
+  velocity: THREE.Vector3;
+  lap: number;
+  wrappedLastFrame: boolean;
 }
-
-const games: GameCard[] = [
-  {
-    id: 'rocket-runner',
-    name: 'Rocket Runner',
-    description: 'Practice timing and reflexes in a speed-focused endless runner.',
-    difficulty: 'Easy',
-    route: '/games/rocket-runner',
-    color: 0x4fc3f7,
-  },
-  {
-    id: 'maze-quest',
-    name: 'Maze Quest 3D',
-    description: 'Learn pathfinding ideas while navigating layered puzzle mazes.',
-    difficulty: 'Medium',
-    route: '/games/maze-quest',
-    color: 0x81c784,
-  },
-  {
-    id: 'space-math',
-    name: 'Space Math Defense',
-    description: 'Defend your planet by solving quick arithmetic challenges.',
-    difficulty: 'Hard',
-    route: '/games/space-math-defense',
-    color: 0xffb74d,
-  },
-];
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) {
@@ -45,129 +16,308 @@ if (!app) {
 app.innerHTML = `
   <section id="scene-root"></section>
   <aside class="panel">
-    <h1>Kidz Gamez Arcade</h1>
-    <p>Walk through the arcade, select a cabinet, and preview each game before jumping in.</p>
-    <div class="game-meta" id="game-meta"></div>
+    <h1>MX Mini Prototype</h1>
+    <p>
+      Inspired by classic motocross games: ride over rolling terrain, hit jumps, throw tricks,
+      and race simple AI riders.
+    </p>
+    <div class="controls">
+      <h2>Controls</h2>
+      <ul>
+        <li><kbd>W</kbd> throttle</li>
+        <li><kbd>S</kbd> brake / reverse</li>
+        <li><kbd>A</kbd> <kbd>D</kbd> steer</li>
+        <li><kbd>Space</kbd> jump / preload</li>
+        <li><kbd>Q</kbd> <kbd>E</kbd> trick spin (air only)</li>
+        <li><kbd>R</kbd> reset bike</li>
+      </ul>
+    </div>
+    <div id="hud" class="hud"></div>
   </aside>
 `;
 
 const sceneRoot = document.querySelector<HTMLElement>('#scene-root');
-const gameMeta = document.querySelector<HTMLElement>('#game-meta');
+const hud = document.querySelector<HTMLElement>('#hud');
 
-if (!sceneRoot || !gameMeta) {
+if (!sceneRoot || !hud) {
   throw new Error('Layout root was not found.');
 }
 
-const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x070b12, 14, 38);
+const world = {
+  width: 360,
+  depth: 52,
+  halfDepth: 26,
+};
 
-const camera = new THREE.PerspectiveCamera(58, sceneRoot.clientWidth / sceneRoot.clientHeight, 0.1, 100);
-camera.position.set(0, 4.4, 13);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x7fb7ff);
+scene.fog = new THREE.Fog(0x9ac6ff, 40, 190);
+
+const camera = new THREE.PerspectiveCamera(63, sceneRoot.clientWidth / sceneRoot.clientHeight, 0.1, 400);
+camera.position.set(-12, 8, 14);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(sceneRoot.clientWidth, sceneRoot.clientHeight);
 sceneRoot.appendChild(renderer.domElement);
 
-const ambient = new THREE.AmbientLight(0x7d94bf, 0.75);
-scene.add(ambient);
+const hemi = new THREE.HemisphereLight(0xffffff, 0x8c6f3d, 1.05);
+scene.add(hemi);
 
-const overhead = new THREE.DirectionalLight(0xdce7ff, 1.3);
-overhead.position.set(0, 8, 5);
-scene.add(overhead);
+const sun = new THREE.DirectionalLight(0xffffff, 1.1);
+sun.position.set(26, 34, 8);
+scene.add(sun);
 
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(70, 40),
-  new THREE.MeshStandardMaterial({ color: 0x121b30, roughness: 0.98, metalness: 0.03 }),
+const skyBand = new THREE.Mesh(
+  new THREE.SphereGeometry(220, 32, 20),
+  new THREE.MeshBasicMaterial({ color: 0xb9daff, side: THREE.BackSide }),
 );
-floor.rotation.x = -Math.PI / 2;
-scene.add(floor);
+scene.add(skyBand);
 
-const laneMarker = new THREE.Mesh(
-  new THREE.PlaneGeometry(55, 2),
-  new THREE.MeshStandardMaterial({ color: 0x1f3b7b, emissive: 0x102448, emissiveIntensity: 0.3 }),
+function terrainHeight(x: number, z: number): number {
+  const base = Math.sin(x * 0.07) * 1.5 + Math.sin(x * 0.16 + 1.7) * 0.8;
+  const laneShape = Math.cos(z * 0.22) * 0.4;
+  const kicker = Math.max(0, 1 - Math.abs(((x + 18) % 62) - 31) / 9) * 2.6;
+  return base + laneShape + kicker;
+}
+
+const terrainGeo = new THREE.PlaneGeometry(world.width, world.depth, 220, 50);
+const terrainPos = terrainGeo.attributes.position;
+for (let i = 0; i < terrainPos.count; i += 1) {
+  const x = terrainPos.getX(i);
+  const z = terrainPos.getY(i);
+  terrainPos.setZ(i, terrainHeight(x, z));
+}
+terrainGeo.computeVertexNormals();
+
+const terrain = new THREE.Mesh(
+  terrainGeo,
+  new THREE.MeshStandardMaterial({ color: 0x7d5b31, roughness: 0.95, metalness: 0 }),
 );
-laneMarker.rotation.x = -Math.PI / 2;
-laneMarker.position.set(0, 0.01, 0);
-scene.add(laneMarker);
+terrain.rotation.x = -Math.PI / 2;
+scene.add(terrain);
 
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
+const grass = new THREE.Mesh(
+  new THREE.PlaneGeometry(world.width + 24, world.depth + 90),
+  new THREE.MeshStandardMaterial({ color: 0x6ca048, roughness: 1 }),
+);
+grass.rotation.x = -Math.PI / 2;
+grass.position.y = -0.15;
+scene.add(grass);
 
-let hoveredCabinet: THREE.Object3D | null = null;
-let selectedGame = games[0];
+const laneLines = new THREE.Group();
+for (let lane = -2; lane <= 2; lane += 1) {
+  const stripe = new THREE.Mesh(
+    new THREE.BoxGeometry(world.width, 0.02, 0.15),
+    new THREE.MeshStandardMaterial({ color: 0xd6c19a, emissive: 0x5b4421, emissiveIntensity: 0.15 }),
+  );
+  stripe.position.set(0, 0.25, lane * 8);
+  laneLines.add(stripe);
+}
+scene.add(laneLines);
 
-const cabinets = games.map((game, index) => {
-  const group = new THREE.Group();
-  group.position.set((index - 1) * 8, 1.55, 0);
-  group.userData.game = game;
+function makeBike(color: number): THREE.Group {
+  const bike = new THREE.Group();
 
   const body = new THREE.Mesh(
-    new THREE.BoxGeometry(3.8, 3.1, 2.5),
-    new THREE.MeshStandardMaterial({ color: 0x1a243c, roughness: 0.5, metalness: 0.2 }),
+    new THREE.BoxGeometry(1.6, 0.45, 0.45),
+    new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.18 }),
   );
-  group.add(body);
+  body.position.y = 0.45;
+  bike.add(body);
 
-  const screen = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.5, 1.4),
-    new THREE.MeshStandardMaterial({
-      color: game.color,
-      emissive: game.color,
-      emissiveIntensity: 0.55,
-      roughness: 0.4,
-    }),
+  const seat = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, 0.2, 0.4),
+    new THREE.MeshStandardMaterial({ color: 0x1e1e1e }),
   );
-  screen.position.set(0, 0.25, 1.26);
-  group.add(screen);
+  seat.position.set(-0.08, 0.73, 0);
+  bike.add(seat);
 
-  const marquee = new THREE.Mesh(
-    new THREE.BoxGeometry(2.8, 0.34, 0.4),
-    new THREE.MeshStandardMaterial({
-      color: game.color,
-      emissive: game.color,
-      emissiveIntensity: 0.3,
-    }),
+  const wheelGeo = new THREE.TorusGeometry(0.32, 0.09, 12, 16);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.95 });
+
+  const frontWheel = new THREE.Mesh(wheelGeo, wheelMat);
+  frontWheel.rotation.y = Math.PI / 2;
+  frontWheel.position.set(0.72, 0.22, 0);
+  bike.add(frontWheel);
+
+  const rearWheel = new THREE.Mesh(wheelGeo, wheelMat);
+  rearWheel.rotation.y = Math.PI / 2;
+  rearWheel.position.set(-0.72, 0.22, 0);
+  bike.add(rearWheel);
+
+  const rider = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.2, 0.68, 6, 10),
+    new THREE.MeshStandardMaterial({ color: 0x3949ab, roughness: 0.6 }),
   );
-  marquee.position.set(0, 1.52, 1.1);
-  group.add(marquee);
+  rider.position.set(-0.08, 1.15, 0);
+  bike.add(rider);
 
-  scene.add(group);
-  return group;
+  return bike;
+}
+
+const playerBike = makeBike(0xff7f32);
+scene.add(playerBike);
+
+const player: RiderState = {
+  mesh: playerBike,
+  velocity: new THREE.Vector3(0, 0, 0),
+  lap: 1,
+  wrappedLastFrame: false,
+};
+player.mesh.position.set(-world.width * 0.47, 2, 0);
+
+const bots: RiderState[] = [0x3ec5ff, 0xad7cff, 0x87d96c].map((color, i) => {
+  const bike = makeBike(color);
+  bike.position.set(-world.width * 0.49 - i * 2.5, 1.5, (i - 1) * 6);
+  scene.add(bike);
+
+  return {
+    mesh: bike,
+    velocity: new THREE.Vector3(16 + i * 1.2, 0, 0),
+    lap: 1,
+    wrappedLastFrame: false,
+  };
 });
 
-function renderPanel(game: GameCard): void {
-  gameMeta.innerHTML = `
-    <h2 style="margin:0;font-size:1.15rem;">${game.name}</h2>
-    <p>${game.description}</p>
-    <p><strong>Difficulty:</strong> ${game.difficulty}</p>
-    <p><strong>Route:</strong> <code>${game.route}</code></p>
-    <button id="play-button">Play this game</button>
-  `;
+const keys = new Set<string>();
+window.addEventListener('keydown', (event) => keys.add(event.code));
+window.addEventListener('keyup', (event) => keys.delete(event.code));
 
-  const playButton = document.querySelector<HTMLButtonElement>('#play-button');
-  playButton?.addEventListener('click', () => {
-    window.alert(`Scaffold only: wire this button to your router and launch ${game.route}.`);
+let jumpCooldown = 0;
+let trickSpin = 0;
+let trickPoints = 0;
+let totalScore = 0;
+let airtime = 0;
+let wasAirborne = false;
+
+const tmpEuler = new THREE.Euler();
+
+function updatePlayer(dt: number): void {
+  const throttle = keys.has('KeyW') ? 1 : 0;
+  const brake = keys.has('KeyS') ? 1 : 0;
+  const steer = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
+
+  const groundedHeight = terrainHeight(player.mesh.position.x, player.mesh.position.z) + 0.82;
+  const grounded = player.mesh.position.y <= groundedHeight + 0.05;
+
+  if (grounded) {
+    player.mesh.position.y = groundedHeight;
+    player.velocity.y = Math.max(0, player.velocity.y);
+    airtime = 0;
+
+    const drag = 5.5 * dt;
+    player.velocity.x -= player.velocity.x * drag;
+    player.velocity.z -= player.velocity.z * drag;
+
+    player.velocity.x += (throttle * 30 - brake * 19) * dt;
+    player.velocity.z += steer * 17 * dt;
+
+    if (keys.has('Space') && jumpCooldown <= 0) {
+      player.velocity.y = 8.6;
+      jumpCooldown = 0.45;
+      wasAirborne = true;
+    }
+  } else {
+    airtime += dt;
+    player.velocity.y -= 22 * dt;
+    player.velocity.z += steer * 6 * dt;
+
+    if (keys.has('KeyQ')) {
+      trickSpin += 4.8 * dt;
+    }
+    if (keys.has('KeyE')) {
+      trickSpin -= 4.8 * dt;
+    }
+  }
+
+  if (keys.has('KeyR')) {
+    player.mesh.position.set(-world.width * 0.47, terrainHeight(-world.width * 0.47, 0) + 1.2, 0);
+    player.velocity.set(0, 0, 0);
+    trickSpin = 0;
+  }
+
+  player.mesh.position.addScaledVector(player.velocity, dt);
+  player.mesh.position.z = THREE.MathUtils.clamp(player.mesh.position.z, -world.halfDepth + 2.5, world.halfDepth - 2.5);
+
+  const bank = THREE.MathUtils.clamp(-player.velocity.z * 0.05, -0.35, 0.35);
+  const pitch = grounded ? THREE.MathUtils.clamp(player.velocity.x * 0.013, -0.16, 0.24) : 0.2;
+
+  tmpEuler.set(0, 0, 0, 'XYZ');
+  tmpEuler.z = bank;
+  tmpEuler.x = pitch;
+  player.mesh.rotation.copy(tmpEuler);
+  player.mesh.rotateX(trickSpin);
+
+  const wrapped = player.mesh.position.x > world.width * 0.5;
+  if (wrapped && !player.wrappedLastFrame) {
+    player.mesh.position.x = -world.width * 0.5;
+    player.lap += 1;
+  }
+  player.wrappedLastFrame = wrapped;
+
+  if (wasAirborne && grounded && Math.abs(trickSpin) > 0.4) {
+    const landedPoints = Math.floor(Math.abs(trickSpin) * 120 + airtime * 90);
+    trickPoints = landedPoints;
+    totalScore += landedPoints;
+    trickSpin = 0;
+    wasAirborne = false;
+  }
+
+  jumpCooldown = Math.max(0, jumpCooldown - dt);
+}
+
+function updateBots(dt: number): void {
+  bots.forEach((bot, i) => {
+    const laneTarget = (i - 1) * 6 + Math.sin(performance.now() * 0.0004 + i) * 1.4;
+    bot.velocity.z += (laneTarget - bot.mesh.position.z) * dt * 1.9;
+    bot.velocity.x += Math.sin(performance.now() * 0.001 + i * 2.3) * dt;
+    bot.velocity.x = THREE.MathUtils.clamp(bot.velocity.x, 14, 21);
+
+    bot.mesh.position.addScaledVector(bot.velocity, dt);
+    const ground = terrainHeight(bot.mesh.position.x, bot.mesh.position.z) + 0.8;
+    bot.mesh.position.y = ground;
+
+    bot.mesh.rotation.z = THREE.MathUtils.clamp(-bot.velocity.z * 0.03, -0.25, 0.25);
+    bot.mesh.rotation.x = THREE.MathUtils.clamp(bot.velocity.x * 0.011, -0.1, 0.22);
+
+    const wrapped = bot.mesh.position.x > world.width * 0.5;
+    if (wrapped && !bot.wrappedLastFrame) {
+      bot.mesh.position.x = -world.width * 0.5;
+      bot.lap += 1;
+    }
+    bot.wrappedLastFrame = wrapped;
   });
 }
 
-renderPanel(selectedGame);
+function getRacePosition(): number {
+  const progress = [player, ...bots]
+    .map((rider, index) => ({
+      index,
+      score: rider.lap * world.width + rider.mesh.position.x,
+    }))
+    .sort((a, b) => b.score - a.score);
 
-function onPointerMove(event: PointerEvent): void {
-  const rect = renderer.domElement.getBoundingClientRect();
-  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  const rank = progress.findIndex((entry) => entry.index === 0);
+  return rank + 1;
 }
 
-renderer.domElement.addEventListener('pointermove', onPointerMove);
-renderer.domElement.addEventListener('click', () => {
-  if (!hoveredCabinet) {
-    return;
-  }
+function updateHud(): void {
+  const speed = Math.max(0, player.velocity.length() * 3.6);
+  const position = getRacePosition();
+  const airborne = player.mesh.position.y > terrainHeight(player.mesh.position.x, player.mesh.position.z) + 0.95;
 
-  const game = hoveredCabinet.userData.game as GameCard;
-  selectedGame = game;
-  renderPanel(selectedGame);
-});
+  hud.innerHTML = `
+    <div class="hud-grid">
+      <p><span>Speed</span><strong>${speed.toFixed(0)} km/h</strong></p>
+      <p><span>Lap</span><strong>${player.lap}</strong></p>
+      <p><span>Position</span><strong>${position} / ${bots.length + 1}</strong></p>
+      <p><span>Status</span><strong>${airborne ? 'Airborne' : 'Grounded'}</strong></p>
+      <p><span>Last trick</span><strong>${trickPoints} pts</strong></p>
+      <p><span>Total score</span><strong>${totalScore} pts</strong></p>
+    </div>
+  `;
+}
 
 window.addEventListener('resize', () => {
   camera.aspect = sceneRoot.clientWidth / sceneRoot.clientHeight;
@@ -178,34 +328,19 @@ window.addEventListener('resize', () => {
 const clock = new THREE.Clock();
 
 function animate(): void {
-  const elapsed = clock.getElapsedTime();
+  const dt = Math.min(clock.getDelta(), 0.033);
 
-  raycaster.setFromCamera(pointer, camera);
-  const intersections = raycaster.intersectObjects(cabinets, true);
-  hoveredCabinet = intersections[0]?.object.parent ?? null;
+  updatePlayer(dt);
+  updateBots(dt);
+  updateHud();
 
-  for (const cabinet of cabinets) {
-    const game = cabinet.userData.game as GameCard;
-    const isActive = cabinet === hoveredCabinet || game.id === selectedGame.id;
+  const lookAhead = new THREE.Vector3(4.5, 1.6, 0);
+  const cameraTarget = player.mesh.position.clone().add(lookAhead);
+  const desired = player.mesh.position.clone().add(new THREE.Vector3(-11, 7.2, 12));
 
-    cabinet.position.y = 1.55 + (isActive ? Math.sin(elapsed * 2.2) * 0.07 : 0);
+  camera.position.lerp(desired, 0.07);
+  camera.lookAt(cameraTarget);
 
-    const [body, screen, marquee] = cabinet.children as THREE.Mesh[];
-
-    const screenMaterial = screen.material as THREE.MeshStandardMaterial;
-    const marqueeMaterial = marquee.material as THREE.MeshStandardMaterial;
-
-    screenMaterial.emissiveIntensity = isActive ? 0.85 : 0.5;
-    marqueeMaterial.emissiveIntensity = isActive ? 0.65 : 0.25;
-
-    if (isActive) {
-      camera.position.x += (cabinet.position.x * 0.08 - camera.position.x) * 0.03;
-    }
-
-    (body.material as THREE.MeshStandardMaterial).color.setHex(isActive ? 0x223152 : 0x1a243c);
-  }
-
-  camera.lookAt(0, 1.6, 0);
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }

@@ -83,6 +83,7 @@ export interface ArcadeScene {
 export interface ArcadePlugin {
   id: string;
   route: string;
+  manifest?: GameManifestV1;
   canLaunch(profile: ChildProfile | null): LaunchCheck;
   createScene(ctx: KernelContext): Promise<ArcadeScene> | ArcadeScene;
   onEnter(ctx: KernelContext): Promise<void> | void;

@@ -118,6 +118,21 @@ export class Kernel {
 
   private safeCanLaunch(nextPlugin: ArcadePlugin, route: string): LaunchCheck {
     try {
+      if (nextPlugin.manifest) {
+        const policyCheck = this.context.agePolicy.canLaunch(nextPlugin.manifest, this.context.profile);
+        if (!policyCheck.allowed) {
+          this.log({
+            level: 'error',
+            code: 'CAN_LAUNCH_DENIED',
+            stage: 'canLaunch',
+            route,
+            pluginId: nextPlugin.id,
+            message: policyCheck.reason ?? 'Launch blocked by policy.',
+          });
+          return policyCheck;
+        }
+      }
+
       const launchCheck = nextPlugin.canLaunch(this.context.profile);
       if (!launchCheck.allowed) {
         this.log({

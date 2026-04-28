@@ -12,6 +12,7 @@ function makeContext(profile: ChildProfile | null = null): KernelContext {
     telemetry: {
       emit: () => undefined,
     },
+    mount: { replaceChildren: () => undefined } as unknown as HTMLElement,
   };
 }
 

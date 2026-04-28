@@ -93,6 +93,7 @@ describe('T09 telemetry and funnel instrumentation', () => {
         canLaunch: () => ({ allowed: true }),
       },
       telemetry: bus,
+      mount: { replaceChildren: () => undefined } as unknown as HTMLElement,
     };
 
     const registry = new PluginRegistry();
@@ -132,6 +133,7 @@ describe('T09 telemetry and funnel instrumentation', () => {
         canLaunch: () => ({ allowed: true }),
       },
       telemetry,
+      mount: { replaceChildren: () => undefined } as unknown as HTMLElement,
     };
 
     const kernel = new Kernel(context, registry);

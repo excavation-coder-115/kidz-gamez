@@ -73,6 +73,7 @@ export interface KernelContext {
   telemetry: {
     emit: (eventType: string, payload?: unknown) => void;
   };
+  mount: HTMLElement;
 }
 
 export interface ArcadeScene {

@@ -93,6 +93,7 @@ export class Kernel {
       if (previous) {
         await previous.plugin.onExit(this.context);
         await previous.scene.dispose();
+        this.context.mount.replaceChildren();
         this.current = null;
       }
 
@@ -112,6 +113,7 @@ export class Kernel {
 
       return { ok: true, route };
     } catch (cause) {
+      this.context.mount.replaceChildren();
       const message = 'We could not switch games right now. Please try again.';
       this.log({
         level: 'error',

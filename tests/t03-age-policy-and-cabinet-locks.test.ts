@@ -82,6 +82,7 @@ describe('T03 age policy and cabinet locks', () => {
       telemetry: {
         emit: () => undefined,
       },
+      mount: { replaceChildren: () => undefined } as unknown as HTMLElement,
     };
 
     const plugin: ArcadePlugin = {

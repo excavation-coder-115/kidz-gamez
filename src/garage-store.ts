@@ -1,4 +1,5 @@
 import type { VehicleGraphV1 } from './contracts/arcade';
+import { validateVehicleGraph } from './vehicle-validator';
 import type { ProfileStore, StorageLike } from './profile-store';
 
 export interface VehicleClassDefinition {
@@ -79,13 +80,18 @@ export class GarageStore {
       return { ok: false, error: 'Vehicle name must be at least 2 characters.' };
     }
 
-    const classId = this.resolveClassId(input.graph.classId);
+    const validation = validateVehicleGraph(input.graph);
+    if (!validation.valid) {
+      return { ok: false, error: `Validation failed: ${validation.errors.join(' ')}`.trim() };
+    }
+
+    const classId = this.resolveClassId(validation.output.classId);
     const entry: GarageEntry = {
       id: this.generateVehicleId(),
       name,
       classId,
       graph: {
-        ...input.graph,
+        ...validation.output,
         classId,
       },
     };

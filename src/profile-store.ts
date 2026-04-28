@@ -1,5 +1,6 @@
 import type { AgeBand, ChildProfile } from './contracts/arcade';
 import type { ParentGateChallenge } from './parent-gate';
+import { buildTelemetryPayload } from './telemetry';
 
 export type AgeBandId = 'age-3-5' | 'age-6-8' | 'age-9-12';
 
@@ -48,6 +49,8 @@ export class ProfileStore {
   constructor(
     private readonly storage: StorageLike,
     private readonly parentGate: ParentGateChallenge,
+    private readonly telemetry?: { emit: (eventType: string, payload?: unknown) => void },
+    private readonly now: () => Date = () => new Date(),
   ) {
     this.state = this.load();
   }
@@ -77,6 +80,15 @@ export class ProfileStore {
     this.state.profiles.push(profile);
     this.state.activeProfileId = profile.id;
     this.persist();
+    this.telemetry?.emit(
+      'profile_created',
+      buildTelemetryPayload(
+        {
+          profile,
+        },
+        this.now,
+      ),
+    );
 
     return { ok: true, profile };
   }

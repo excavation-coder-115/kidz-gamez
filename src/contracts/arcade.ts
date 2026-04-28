@@ -71,7 +71,7 @@ export interface KernelContext {
     canLaunch: (manifest: GameManifestV1, profile: ChildProfile | null) => LaunchCheck;
   };
   telemetry: {
-    emit: (eventType: string, payload?: Record<string, unknown>) => void;
+    emit: (eventType: string, payload?: unknown) => void;
   };
 }
 

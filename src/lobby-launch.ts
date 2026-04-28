@@ -1,4 +1,6 @@
 import type { NavigationResult } from './kernel';
+import type { ChildProfile } from './contracts/arcade';
+import { buildTelemetryPayload } from './telemetry';
 
 interface Vec3 {
   x: number;
@@ -24,6 +26,8 @@ interface LobbyLaunchControllerOptions {
   hubRoute: string;
   hubSpawn: Vec3;
   onReturnToHubSpawn?: (position: Vec3) => void;
+  telemetry?: { emit: (eventType: string, payload?: unknown) => void };
+  getCurrentProfile?: () => ChildProfile | null;
 }
 
 export class LobbyLaunchController {
@@ -57,6 +61,15 @@ export class LobbyLaunchController {
     if (!this.activeCabinet) {
       return { ok: false, route: this.options.hubRoute, reason: 'No cabinet in interaction range.' };
     }
+
+    this.options.telemetry?.emit(
+      'cabinet_interacted',
+      buildTelemetryPayload({
+        profile: this.options.getCurrentProfile?.() ?? null,
+        cabinetId: this.activeCabinet.id,
+        gameId: this.activeCabinet.route,
+      }),
+    );
 
     const { lockedReason } = this.activeCabinet;
     if (lockedReason) {

@@ -219,4 +219,39 @@ describe('T08 lobby launch interaction and lifecycle handoff', () => {
       'plugin:lobby:onEnter',
     ]);
   });
+
+  test('non-lifecycle launch denials do not force a hub reload', async () => {
+    const events: string[] = [];
+    const registry = new PluginRegistry();
+    registry.register(makePlugin({ id: 'lobby', route: '/lobby', events }));
+
+    const kernel = new Kernel(makeContext(), registry);
+    await kernel.navigateTo('/lobby');
+
+    const controller = new LobbyLaunchController({
+      kernel,
+      hubRoute: '/lobby',
+      hubSpawn: { x: 0, y: 0, z: 0 },
+    });
+
+    controller.setCabinets([
+      {
+        id: 'cab-missing',
+        route: '/missing-runtime',
+        position: { x: 0, y: 0, z: 0 },
+        interactionRadius: 2,
+      },
+    ]);
+
+    controller.updatePlayerPosition({ x: 0, y: 0, z: 0 });
+    const launch = await controller.interact();
+
+    expect(launch.ok).toBeFalse();
+    expect(controller.getErrorModalMessage()).toBe('No game is available for route "/missing-runtime".');
+    expect(events).toEqual([
+      'scene:lobby:create',
+      'scene:lobby:activate',
+      'plugin:lobby:onEnter',
+    ]);
+  });
 });

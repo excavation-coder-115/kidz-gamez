@@ -80,7 +80,9 @@ export class LobbyLaunchController {
     const launch = await this.options.kernel.navigateTo(this.activeCabinet.route);
     if (!launch.ok) {
       this.errorModalMessage = launch.errorMessage ?? 'Unable to launch game runtime.';
-      await this.options.kernel.navigateTo(this.options.hubRoute);
+      if (launch.requiresHubRecovery) {
+        await this.options.kernel.navigateTo(this.options.hubRoute);
+      }
       return launch;
     }
 

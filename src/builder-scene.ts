@@ -110,7 +110,7 @@ export class BuilderSceneModel {
 
       const node = this.makeNode({ module, transform: input.transform });
       this.insertNode(node, module);
-      return { ok: true, node };
+      return { ok: true, node: this.cloneNode(node) };
     }
 
     if (!input.parentId || !input.socketId) {
@@ -150,7 +150,7 @@ export class BuilderSceneModel {
     });
     this.insertNode(node, module);
 
-    return { ok: true, node };
+    return { ok: true, node: this.cloneNode(node) };
   }
 
   removeModule(nodeId: string): BuilderResult<{ removedCount: number }> {
@@ -196,7 +196,7 @@ export class BuilderSceneModel {
     };
 
     node.graphNode.transform = next;
-    return { ok: true, value: node.graphNode };
+    return { ok: true, value: this.cloneNode(node.graphNode) };
   }
 
   exportGraph(): VehicleGraphV1 {
@@ -206,10 +206,16 @@ export class BuilderSceneModel {
       nodes: this.nodeOrder
         .map((id) => this.nodesById.get(id)?.graphNode)
         .filter((node): node is VehicleGraphNodeV1 => Boolean(node))
-        .map((node) => ({
-          ...node,
-          transform: { ...node.transform },
-        })),
+        .map((node) => this.cloneNode(node)),
+    };
+  }
+
+  private cloneNode(node: VehicleGraphNodeV1): VehicleGraphNodeV1 {
+    return {
+      ...node,
+      transform: {
+        ...node.transform,
+      },
     };
   }
 

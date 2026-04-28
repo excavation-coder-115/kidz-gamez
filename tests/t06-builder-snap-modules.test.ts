@@ -137,4 +137,23 @@ describe('T06 builder scene with snap modules', () => {
     const ids = BUILDER_MODULES.map((entry) => entry.id);
     expect(ids).toEqual(['chassis-core', 'wheel-standard', 'engine-v1', 'wing-mini']);
   });
+
+  test('addModule returns cloned nodes so external mutation does not alter scene state', () => {
+    const builder = new BuilderSceneModel({ classId: 'speedster' });
+    const root = builder.addModule({ moduleId: 'chassis-core' });
+    expect(root.ok).toBeTrue();
+    if (!root.ok) {
+      return;
+    }
+
+    root.node.moduleId = 'engine-v1';
+    root.node.socketId = 'rear-mount';
+    root.node.transform.tx = 99;
+
+    const exported = builder.exportGraph();
+    expect(exported.nodes).toHaveLength(1);
+    expect(exported.nodes[0].moduleId).toBe('chassis-core');
+    expect(exported.nodes[0].socketId).toBeUndefined();
+    expect(exported.nodes[0].transform.tx).toBe(0);
+  });
 });

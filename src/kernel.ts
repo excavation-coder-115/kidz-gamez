@@ -1,4 +1,5 @@
 import type { ArcadePlugin, ArcadeScene, KernelContext, LaunchCheck } from './contracts/arcade';
+import { buildTelemetryPayload } from './telemetry';
 
 export type KernelErrorCode = 'DUPLICATE_PLUGIN_ID' | 'ROUTE_NOT_FOUND' | 'CAN_LAUNCH_DENIED' | 'LIFECYCLE_FAILURE';
 
@@ -99,6 +100,14 @@ export class Kernel {
       await nextPlugin.onEnter(this.context);
 
       this.current = { route, plugin: nextPlugin, scene };
+      this.context.telemetry.emit(
+        'game_runtime_loaded',
+        buildTelemetryPayload({
+          profile: this.context.profile,
+          gameId: nextPlugin.id,
+          manifestId: nextPlugin.manifest?.id,
+        }),
+      );
 
       return { ok: true, route };
     } catch (cause) {

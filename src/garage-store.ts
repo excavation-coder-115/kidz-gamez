@@ -1,6 +1,7 @@
 import type { VehicleGraphV1 } from './contracts/arcade';
 import { validateVehicleGraph } from './vehicle-validator';
 import type { ProfileStore, StorageLike } from './profile-store';
+import { buildTelemetryPayload } from './telemetry';
 
 export interface VehicleClassDefinition {
   id: string;
@@ -65,6 +66,8 @@ export class GarageStore {
   constructor(
     private readonly storage: StorageLike,
     private readonly profileStore: Pick<ProfileStore, 'getActiveProfile'>,
+    private readonly telemetry?: { emit: (eventType: string, payload?: unknown) => void },
+    private readonly now: () => Date = () => new Date(),
   ) {
     this.state = this.load();
   }
@@ -100,6 +103,16 @@ export class GarageStore {
     profileGarage.entries.push(entry);
     profileGarage.activeVehicleId = entry.id;
     this.persist();
+    this.telemetry?.emit(
+      'vehicle_saved',
+      buildTelemetryPayload(
+        {
+          profile: this.profileStore.getActiveProfile(),
+          vehicleId: entry.id,
+        },
+        this.now,
+      ),
+    );
 
     return { ok: true, vehicle: entry };
   }

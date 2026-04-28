@@ -111,3 +111,6 @@ dist
 
 # TernJS port file
 .tern-port
+
+# Playwright CLI debug artifacts
+.playwright-cli/

@@ -22,6 +22,7 @@ export interface NavigationResult {
   route: string;
   reason?: string;
   errorMessage?: string;
+  requiresHubRecovery?: boolean;
 }
 
 export class DuplicatePluginError extends Error {
@@ -122,7 +123,7 @@ export class Kernel {
         cause,
       });
 
-      return { ok: false, route, errorMessage: message };
+      return { ok: false, route, errorMessage: message, requiresHubRecovery: true };
     }
   }
 

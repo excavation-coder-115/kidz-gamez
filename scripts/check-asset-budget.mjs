@@ -38,9 +38,15 @@ function walkFiles(dir) {
 
 const { dir, limitMb } = parseArgs(process.argv.slice(2));
 const limitBytes = Math.floor(limitMb * 1024 * 1024);
-const compressedFiles = walkFiles(dir).filter((file) => file.endsWith('.gz') || file.endsWith('.br'));
+const files = walkFiles(dir);
+const compressedFiles = files.filter((file) => file.endsWith('.gz') || file.endsWith('.br'));
+const filesToMeasure =
+  compressedFiles.length > 0
+    ? compressedFiles
+    : files.filter((file) => !file.endsWith('.gz') && !file.endsWith('.br'));
 
-const totalBytes = compressedFiles.reduce((sum, file) => sum + statSync(file).size, 0);
+const totalBytes = filesToMeasure.reduce((sum, file) => sum + statSync(file).size, 0);
+const modeLabel = compressedFiles.length > 0 ? 'compressed assets' : 'built assets (uncompressed fallback)';
 
 if (totalBytes > limitBytes) {
   console.error(
@@ -50,3 +56,4 @@ if (totalBytes > limitBytes) {
 }
 
 console.log(`Asset budget OK: ${totalBytes} bytes <= ${limitBytes} bytes (${limitMb} MB limit).`);
+console.log(`Measured ${modeLabel}.`);

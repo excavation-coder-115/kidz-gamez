@@ -64,6 +64,26 @@ describe('T10 performance and device guardrails', () => {
     }
   });
 
+  test('asset budget checker falls back to built assets when compressed files are absent', () => {
+    const assetsDir = mkdtempSync(join(tmpdir(), 'kidz-budget-plain-'));
+
+    try {
+      writeFileSync(join(assetsDir, 'main.js'), Buffer.alloc(9 * 1024 * 1024, 1));
+      writeFileSync(join(assetsDir, 'main.css'), Buffer.alloc(8 * 1024 * 1024, 1));
+
+      const run = Bun.spawnSync({
+        cmd: ['bun', 'scripts/check-asset-budget.mjs', '--dir', assetsDir, '--limit-mb', '15'],
+        stdout: 'pipe',
+        stderr: 'pipe',
+      });
+
+      expect(run.exitCode).toBe(1);
+      expect(run.stderr.toString()).toContain('Asset budget exceeded');
+    } finally {
+      rmSync(assetsDir, { recursive: true, force: true });
+    }
+  });
+
   test('performance script reports first interactive measurement for target profile', () => {
     const run = Bun.spawnSync({
       cmd: ['bun', 'scripts/measure-first-interactive.mjs', '--profile', 'desktop-mid', '--budget-ms', '2500'],

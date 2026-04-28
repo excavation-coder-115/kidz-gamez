@@ -6,10 +6,12 @@
   "packageManager": "bun@1.2.13",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && bun run build:asset-budget",
     "preview": "vite preview",
     "check": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "build:asset-budget": "bun scripts/check-asset-budget.mjs --dir dist --limit-mb 15",
+    "perf:first-interactive": "bun scripts/measure-first-interactive.mjs --profile desktop-mid --budget-ms 2500"
   },
   "dependencies": {
     "three": "^0.176.0"

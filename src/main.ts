@@ -1,5 +1,6 @@
 import './style.css';
 import * as THREE from 'three';
+import { decideBootPath } from './runtime-guardrails';
 
 interface RiderState {
   mesh: any;
@@ -13,7 +14,26 @@ if (!app) {
   throw new Error('App root was not found.');
 }
 
-app.innerHTML = `
+const probeCanvas = document.createElement('canvas');
+const webglContext = (probeCanvas.getContext('webgl') ??
+  probeCanvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+const bootDecision = decideBootPath({
+  hasWebGLRenderingContext: typeof WebGLRenderingContext !== 'undefined',
+  webglContextAvailable: Boolean(webglContext),
+  maxTextureSize: webglContext ? Number(webglContext.getParameter(webglContext.MAX_TEXTURE_SIZE)) : 0,
+  userAgent: navigator.userAgent,
+});
+
+if (bootDecision.type === 'unsupported-device') {
+  app.innerHTML = `
+    <section class="panel">
+      <h1>Device unsupported</h1>
+      <p>${bootDecision.message}</p>
+      <p>${bootDecision.reasons.join(' ')}</p>
+    </section>
+  `;
+} else {
+  app.innerHTML = `
   <section id="scene-root"></section>
   <aside class="panel">
     <h1>MX Mini Prototype</h1>
@@ -348,3 +368,4 @@ function animate(): void {
 }
 
 animate();
+}

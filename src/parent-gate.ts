@@ -16,10 +16,10 @@ export class ParentGateChallenge {
       answer: left + right,
     };
 
-    this.currentChallenge = challenge;
+    this.currentChallenge = { ...challenge };
     this.unlocked = false;
 
-    return challenge;
+    return { ...challenge };
   }
 
   verifyAnswer(_challenge: ParentChallenge, submittedAnswer: number): boolean {

@@ -38,6 +38,15 @@ describe('T02 parent gate and child profiles', () => {
     expect(gate.isUnlocked()).toBeFalse();
   });
 
+  test('verifyAnswer ignores caller mutations to returned challenge object', () => {
+    const gate = new ParentGateChallenge();
+    const challenge = gate.createChallenge();
+
+    challenge.answer = 7;
+    expect(gate.verifyAnswer(challenge, 7)).toBeFalse();
+    expect(gate.isUnlocked()).toBeFalse();
+  });
+
   test('profile validation rejects invalid age bands', () => {
     const store = withParentReady();
 

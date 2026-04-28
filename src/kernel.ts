@@ -91,6 +91,7 @@ export class Kernel {
       if (previous) {
         await previous.plugin.onExit(this.context);
         await previous.scene.dispose();
+        this.current = null;
       }
 
       const scene = await nextPlugin.createScene(this.context);

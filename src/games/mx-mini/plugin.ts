@@ -8,10 +8,14 @@ import type {
 
 interface RiderState {
   mesh: any;
+  wheels: any[];
+  wheelSpin: number;
   velocity: any;
   lap: number;
   wrappedLastFrame: boolean;
 }
+
+const WHEEL_RADIUS = 0.41;
 
 interface TerrainContact {
   y: number;
@@ -126,7 +130,8 @@ function buildScene(ctx: KernelContext): ArcadeScene {
   const terrainPos = terrainGeo.attributes.position;
   for (let i = 0; i < terrainPos.count; i += 1) {
     const x = terrainPos.getX(i);
-    const z = terrainPos.getY(i);
+    // The plane is rotated -PI/2 about X, which maps local +Y to world -Z.
+    const z = -terrainPos.getY(i);
     terrainPos.setZ(i, terrainHeight(x, z));
   }
   terrainGeo.computeVertexNormals();
@@ -139,28 +144,43 @@ function buildScene(ctx: KernelContext): ArcadeScene {
   const grassMat = track(new THREE.MeshStandardMaterial({ color: 0x6ca048, roughness: 1 }));
   const grass = new THREE.Mesh(grassGeo, grassMat);
   grass.rotation.x = -Math.PI / 2;
-  grass.position.y = -0.15;
+  // Keep the apron below the lowest terrain dip (~-2.7) so it never cuts through the track.
+  grass.position.y = -3;
   scene.add(grass);
 
-  const stripeGeo = track(new THREE.BoxGeometry(world.width, 0.02, 0.15));
+  const stripeGeo = track(new THREE.BoxGeometry(3, 0.04, 0.18));
   const stripeMat = track(
     new THREE.MeshStandardMaterial({ color: 0xd6c19a, emissive: 0x5b4421, emissiveIntensity: 0.15 }),
   );
-  const laneLines = new THREE.Group();
-  for (let lane = -2; lane <= 2; lane += 1) {
-    const stripe = new THREE.Mesh(stripeGeo, stripeMat);
-    stripe.position.set(0, 0.25, lane * 8);
-    laneLines.add(stripe);
+  const stripeSpacing = 4;
+  const stripesPerLane = Math.floor(world.width / stripeSpacing);
+  const lanes = [-2, -1, 0, 1, 2];
+  const laneLines = track(new THREE.InstancedMesh(stripeGeo, stripeMat, stripesPerLane * lanes.length));
+  const stripeMatrix = new THREE.Matrix4();
+  let stripeIndex = 0;
+  for (const lane of lanes) {
+    const laneZ = lane * 8;
+    for (let s = 0; s < stripesPerLane; s += 1) {
+      const x = -world.width / 2 + (s + 0.5) * stripeSpacing;
+      const slope = (terrainHeight(x + 1, laneZ) - terrainHeight(x - 1, laneZ)) / 2;
+      stripeMatrix.makeRotationZ(Math.atan(slope));
+      stripeMatrix.setPosition(x, terrainHeight(x, laneZ) + 0.05, laneZ);
+      laneLines.setMatrixAt(stripeIndex, stripeMatrix);
+      stripeIndex += 1;
+    }
   }
+  laneLines.instanceMatrix.needsUpdate = true;
   scene.add(laneLines);
 
   const bikeAssets = createBikeAssets(track);
 
   const playerBike = makeBike(bikeAssets, 0xff7f32, track);
-  scene.add(playerBike);
+  scene.add(playerBike.group);
 
   const player: RiderState = {
-    mesh: playerBike,
+    mesh: playerBike.group,
+    wheels: playerBike.wheels,
+    wheelSpin: 0,
     velocity: new THREE.Vector3(0, 0, 0),
     lap: 1,
     wrappedLastFrame: false,
@@ -169,10 +189,12 @@ function buildScene(ctx: KernelContext): ArcadeScene {
 
   const bots: RiderState[] = [0x3ec5ff, 0xad7cff, 0x87d96c].map((color, i) => {
     const bike = makeBike(bikeAssets, color, track);
-    bike.position.set(-world.width * 0.49 - i * 2.5, 1.5, (i - 1) * 6);
-    scene.add(bike);
+    bike.group.position.set(-world.width * 0.49 - i * 2.5, 1.5, (i - 1) * 6);
+    scene.add(bike.group);
     return {
-      mesh: bike,
+      mesh: bike.group,
+      wheels: bike.wheels,
+      wheelSpin: 0,
       velocity: new THREE.Vector3(16 + i * 1.2, 0, 0),
       lap: 1,
       wrappedLastFrame: false,
@@ -264,7 +286,8 @@ function buildScene(ctx: KernelContext): ArcadeScene {
       grounded = false;
     }
 
-    const bank = THREE.MathUtils.clamp(-player.velocity.z * 0.05, -0.35, 0.35);
+    // Forward is +X, so leaning into a turn is rotation about X and pitch is rotation about Z.
+    const bank = THREE.MathUtils.clamp(player.velocity.z * 0.05, -0.35, 0.35);
     const pitch = grounded
       ? THREE.MathUtils.clamp(contactAfterMove.pitch + player.velocity.x * 0.005, -0.45, 0.45)
       : 0.18;
@@ -391,7 +414,9 @@ function buildScene(ctx: KernelContext): ArcadeScene {
 function terrainHeight(x: number, z: number): number {
   const base = Math.sin(x * 0.07) * 1.5 + Math.sin(x * 0.16 + 1.7) * 0.8;
   const laneShape = Math.cos(z * 0.22) * 0.4;
-  const kicker = Math.max(0, 1 - Math.abs(((x + 18) % 62) - 31) / 9) * 2.6;
+  // Positive modulo so the kickers repeat across the whole track, including negative x.
+  const kickerCycle = (((x + 18) % 62) + 62) % 62;
+  const kicker = Math.max(0, 1 - Math.abs(kickerCycle - 31) / 9) * 2.6;
   return base + laneShape + kicker;
 }
 
@@ -425,11 +450,17 @@ interface BikeAssets {
   seatGeo: any;
   seatMat: any;
   wheelGeo: any;
+  spokeGeo: any;
   wheelMat: any;
   riderGeo: any;
   riderMat: any;
   forkMat: any;
   plateMat: any;
+}
+
+interface BikeRig {
+  group: any;
+  wheels: any[];
 }
 
 function createBikeAssets(track: <T extends { dispose(): void }>(t: T) => T): BikeAssets {
@@ -442,6 +473,7 @@ function createBikeAssets(track: <T extends { dispose(): void }>(t: T) => T): Bi
     seatGeo: track(new THREE.BoxGeometry(0.82, 0.16, 0.34)),
     seatMat: track(new THREE.MeshStandardMaterial({ color: 0x1e1e1e })),
     wheelGeo: track(new THREE.TorusGeometry(0.31, 0.085, 14, 24)),
+    spokeGeo: track(new THREE.BoxGeometry(0.56, 0.05, 0.05)),
     wheelMat: track(new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.95 })),
     riderGeo: track(new THREE.CapsuleGeometry(0.2, 0.68, 6, 10)),
     riderMat: track(new THREE.MeshStandardMaterial({ color: 0x3949ab, roughness: 0.6 })),
@@ -450,16 +482,17 @@ function createBikeAssets(track: <T extends { dispose(): void }>(t: T) => T): Bi
   };
 }
 
+// The group origin sits at ground-contact level so riders can be placed directly on the terrain.
 function makeBike(
   assets: BikeAssets,
   color: number,
   track: <T extends { dispose(): void }>(t: T) => T,
-): any {
+): BikeRig {
   const bike = new THREE.Group();
 
   const bodyMat = track(new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.18 }));
   const body = new THREE.Mesh(assets.bodyGeo, bodyMat);
-  body.position.y = 0.55;
+  body.position.y = 0.62;
   bike.add(body);
 
   const numberPlate = new THREE.Mesh(assets.plateGeo, assets.plateMat);

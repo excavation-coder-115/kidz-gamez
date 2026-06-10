@@ -297,7 +297,7 @@ function buildScene(ctx: KernelContext): ArcadeScene {
     tmpEuler.z = pitch;
     player.mesh.rotation.copy(tmpEuler);
     if (!grounded) player.mesh.rotateZ(trickSpin);
-    spinBikeWheels(player.mesh, player.velocity.x * dt);
+    spinBikeWheels(player, player.velocity.x * dt);
 
     const wrapped = player.mesh.position.x > world.width * 0.5;
     if (wrapped && !player.wrappedLastFrame) {
@@ -333,7 +333,7 @@ function buildScene(ctx: KernelContext): ArcadeScene {
 
       bot.mesh.rotation.x = THREE.MathUtils.clamp(-bot.velocity.z * 0.03, -0.25, 0.25);
       bot.mesh.rotation.z = THREE.MathUtils.clamp(contact.pitch + bot.velocity.x * 0.004, -0.38, 0.38);
-      spinBikeWheels(bot.mesh, bot.velocity.x * dt);
+      spinBikeWheels(bot, bot.velocity.x * dt);
 
       const wrapped = bot.mesh.position.x > world.width * 0.5;
       if (wrapped && !bot.wrappedLastFrame) {
@@ -433,11 +433,10 @@ function getTerrainContact(x: number, z: number): TerrainContact {
   };
 }
 
-function spinBikeWheels(bike: any, distance: number): void {
-  const wheelSpin = -distance / BIKE.wheelRadius;
-  const wheels = bike.userData.wheels as any[] | undefined;
-  wheels?.forEach((wheel) => {
-    wheel.rotation.z += wheelSpin;
+function spinBikeWheels(rider: RiderState, distance: number): void {
+  rider.wheelSpin -= distance / WHEEL_RADIUS;
+  rider.wheels.forEach((wheel) => {
+    wheel.rotation.z = rider.wheelSpin;
   });
 }
 
@@ -505,12 +504,24 @@ function makeBike(
   seat.rotation.z = -0.08;
   bike.add(seat);
 
+  // Crossed spokes parented to the wheel so spinBikeWheels' rotation reads on screen
+  // (a bare torus is rotationally symmetric and looks static when spun).
+  const addSpokes = (wheel: any) => {
+    for (let i = 0; i < 2; i += 1) {
+      const spoke = new THREE.Mesh(assets.spokeGeo, assets.forkMat);
+      spoke.rotation.z = (i * Math.PI) / 2;
+      wheel.add(spoke);
+    }
+  };
+
   const frontWheel = new THREE.Mesh(assets.wheelGeo, assets.wheelMat);
   frontWheel.position.set(BIKE.frontWheelX, BIKE.wheelCenterY, 0);
+  addSpokes(frontWheel);
   bike.add(frontWheel);
 
   const rearWheel = new THREE.Mesh(assets.wheelGeo, assets.wheelMat);
   rearWheel.position.set(BIKE.rearWheelX, BIKE.wheelCenterY, 0);
+  addSpokes(rearWheel);
   bike.add(rearWheel);
 
   const frontFender = new THREE.Mesh(assets.fenderGeo, bodyMat);
@@ -543,6 +554,5 @@ function makeBike(
   rider.rotation.z = -0.22;
   bike.add(rider);
 
-  bike.userData.wheels = [frontWheel, rearWheel];
-  return bike;
+  return { group: bike, wheels: [frontWheel, rearWheel] };
 }
